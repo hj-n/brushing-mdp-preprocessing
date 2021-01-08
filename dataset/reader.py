@@ -1,5 +1,7 @@
 import csv
 
+## Returns raw_data, label_data
+## if no label, returns None for label_data
 def dataset_reader(dataset):
     return {
         "spheres": lambda : spheres_reader()
