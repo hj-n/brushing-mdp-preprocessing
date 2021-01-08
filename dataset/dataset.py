@@ -1,9 +1,13 @@
 
 import csv
 import os
+import json
 import argparse
 import reader as READ
 import embedding as EMBED
+import time
+
+from pathlib import Path
 
 SUPPORTING_DATASETS = ["spheres"]
 SUPPORTING_METHODS = ["umap"]
@@ -61,17 +65,47 @@ if method=="umap":
         raise Exception("n_neighbors should be an integer")
     
 
+## Start embedding data generation
+print(method.upper() + " embedding for " + dataset.upper() + " dataset generation")
 
+
+start = time.time()
 ## READ Data from raw data and sample down the dataset
 raw_data, label_data = READ.dataset_reader(dataset)
 raw_data = sampling(raw_data, sample_divisor)
 label_data = sampling(label_data, sample_divisor) if label_data != None else label_data
 
+end = time.time()
+print("Took " + "{:.3f}".format(end - start) + " seconds to read file")
+
+
+start = time.time()
 ## Generate embeddings
 emb_data = EMBED.embedding(method, raw_data, min_dist, n_neighbors)
 
-print(emb_data[100:200])
+end = time.time()
+print("Took " + "{:.3f}".format(end - start) + " seconds to generate " + method + " embedding")
 
+
+## Generate path (if not exists) and dump json file
+path = "./" + dataset + "/results/" + method + "/" + str(sample_divisor) + "/"
+Path(path).mkdir(parents=True, exist_ok=True)
+
+
+start = time.time()
+
+with open(path + "raw.json", "w") as outfile:
+    json.dump(raw_data, outfile)
+with open(path + "emb.json", "w") as outfile:
+    json.dump(emb_data, outfile)
+if label_data != None:
+    with open(path + "label.json", "w") as outfile:
+        json.dump(label_data, outfile)
+
+end = time.time()
+print("Took " + "{:.3f}".format(end - start) + " seconds to dump result files")
+
+print("FINISHED!!")
 
 # Spheres data generation for final test data extraction (umap)
 # spheres_data = list(csv.reader(open("./raw_data/spheres/raw.csv")))[1:]
