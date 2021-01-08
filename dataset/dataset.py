@@ -6,7 +6,6 @@ import argparse
 import reader as READ
 import embedding as EMBED
 import time
-
 from pathlib import Path
 
 SUPPORTING_DATASETS = ["spheres"]
@@ -88,7 +87,7 @@ print("Took " + "{:.3f}".format(end - start) + " seconds to generate " + method 
 
 
 ## Generate path (if not exists) and dump json file
-path = "./" + dataset + "/results/" + method + "/" + str(sample_divisor) + "/"
+path = "./" + dataset + "/" + method + "/" + str(sample_divisor) + "/"
 Path(path).mkdir(parents=True, exist_ok=True)
 
 
@@ -107,24 +106,3 @@ print("Took " + "{:.3f}".format(end - start) + " seconds to dump result files")
 
 print("FINISHED!!")
 
-# Spheres data generation for final test data extraction (umap)
-# spheres_data = list(csv.reader(open("./raw_data/spheres/raw.csv")))[1:]
-# spheres_raw_data = np.array([datum[:-1] for datum in spheres_data])
-# spheres_label = np.array([datum[-1] for datum in spheres_data])
-
-# p = 0.3
-# n = 20
-
-# final_data = [] 
-# key_summary = str(n) + "_" + str(int(p * 100))
-# umap_instance = umap.UMAP(n_neighbors=n, min_dist=p)
-# spheres_emb_data =umap_instance.fit_transform(spheres_raw_data)
-# for (i, _) in enumerate(spheres_emb_data):
-#     datum = {}
-#     datum["raw"] = spheres_raw_data[i].tolist()
-#     datum["emb"] = spheres_emb_data[i].tolist()
-#     datum["label"] = spheres_label[i]
-#     final_data.append(datum)
-# print("UMAP for", "spheres", key_summary, "finished!!")
-# with open(PATH + "spheres_" + key_summary + "_umap.json", "w") as outfile:
-#     json.dump(final_data, outfile)
