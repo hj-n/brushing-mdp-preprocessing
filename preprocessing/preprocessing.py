@@ -138,17 +138,31 @@ if is_testing:
                 raise Exception()
 
 
+start = time.time()
 
-## Generate Json File and store it
-result = []
+## Generate json File and store it
+
+
+
+snn_result = []    ## for server
+density_result = np.empty(length)  ## for front
 for i in range(length):
+    density = (np.sum(snn_strength[i]) - snn_strength[i, i])
     snn_info = {
-        "density": (np.sum(snn_strength[i]) - snn_strength[i, i]),
         "similarity" : snn_strength[i].tolist()
     }
-    result.append(snn_info)
+    snn_result.append(snn_info)
+    density_result[i] = density
+
+max_density = np.max(density_result)
+density_result = (density_result / max_density).tolist()
 
 path = "../preprocessed/" + dataset + "/" + method + "/" + str(sample_divisor) + "/"
 Path(path).mkdir(parents=True, exist_ok=True)
-with open(path + "raw.json", "w") as outfile:
-    json.dump(result, outfile)
+with open(path + "snn_similarity.json", "w") as outfile:
+    json.dump(snn_result, outfile)
+with open(path + "snn_density.json", "w") as outfile:
+    json.dump(density_result, outfile)
+
+end = time.time()
+print("Took " + "{:.3f}".format(end - start) + " seconds to dump the result")
