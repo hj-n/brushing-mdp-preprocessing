@@ -3,20 +3,25 @@ import numpy as np
 import json
 import argparse
 import time
+import math
 
 from pathlib import Path
 from sklearn.neighbors import KDTree
+
+from numba import cuda
 
 parser = argparse.ArgumentParser(description='Preprocessing Step for MDP Brushing', formatter_class=argparse.RawTextHelpFormatter)
 parser.add_argument("-d", "--dataset", help='The dataset to preprocess')
 parser.add_argument("-m", "--method", help='Embedding method to preprocess')
 parser.add_argument("-s", "--sample", help='Sampling divisor value to preprocess')
+parser.add_argument("--testgpu", action='store_true')
 
 args = parser.parse_args()
 
 dataset        = args.dataset
 method         = args.method
 sample_divisor = args.sample
+is_testing = args.testgpu
 
 ## parser error check
 # dataset / method / sample
@@ -60,26 +65,80 @@ start = time.time()
 k = 30
 kdtree = KDTree(raw_data, leaf_size=2)
 neighbors = kdtree.query(raw_data, k + 1, return_distance=False)
-raw_knn = neighbors[:, 1:]
+raw_knn = np.array(neighbors[:, 1:])
 
 end = time.time()
 print("Took " + "{:.3f}".format(end - start) + " seconds to generate knn graph")
 
 
+
+
+## GPU Acceleration for snn matrix computation
+
+@cuda.jit
+def snn(raw_knn, snn_strength):
+    ## Input: raw_knn (knn info)
+    ## Output: snn_strength (snn info)
+    i = cuda.threadIdx.x + cuda.blockIdx.x * cuda.blockDim.x
+    j = cuda.threadIdx.y + cuda.blockIdx.y * cuda.blockDim.y
+
+    if i >= length or j >= length or j >= i:
+        return
+
+    c = 0
+    for m in range(k):
+        for n in range(k):
+            if raw_knn[i, m] == raw_knn[j,n]:
+                c += (k + 1 - m) * (k + 1 - n)
+
+    snn_strength[i, j] = c
+    
+
+
 start = time.time()
-## Construct SNN strength matrix
-snn_strength = np.zeros([length, length])
 
-length = 500
+raw_knn_gloabl_mem = cuda.to_device(raw_knn)
+snn_strength_global_mem = cuda.device_array((length, length))
 
-c = 0
-for i in range(length):
-    for j in range(length):
-        for m in range(k):
-            for n in range(k):
-                c += 1
+TPB = 16
+tpb = (TPB, TPB)
+bpg = (math.ceil(length / TPB), math.ceil(length / TPB))
+
+snn[bpg, tpb](raw_knn_gloabl_mem, snn_strength_global_mem)
+snn_strength = snn_strength_global_mem.copy_to_host()
+
 
 end = time.time()
-print("Took " + "{:.3f}".format(end - start) + " seconds to generate snn matrix")
+print("Took " + "{:.3f}".format(end - start) + " seconds to construct snn matrix with GPU")
+
+
+
+## TESTING MODE for GPU IMPLEMENTATION (only execute when --testgpu flag is set)
+if is_testing:
+    start = time.time()
+    ## Construct SNN strength matrix (TEST code)
+    snn_strength_test = np.zeros([length, length])
+
+    for i in range(length):
+        for j in range(i):
+            for m in range(k):
+                for n in range(k):
+                    if raw_knn[i,m] == raw_knn[j,n]:
+                        snn_strength_test[i, j] += (k + 1 - m) * (k + 1 - n)
+
+    end = time.time()
+    print("Took " + "{:.3f}".format(end - start) + " seconds to construct snn matrix with cpu")
+
+    for i in range(length):
+        for j in range(i):
+            if not (-0.0001 < snn_strength[i,j] - snn_strength_test[i, j] < 0.0001):
+                print("*** GPU result of index " + str([i, j]) + " is wrong!! ***")
+                print("GPU result: ", snn_strength[i, j])
+                print("CPU result: ", snn_strength_test[i, j])
+                raise Exception()
+
+
+
+
 
 
