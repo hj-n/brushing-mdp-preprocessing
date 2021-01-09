@@ -73,7 +73,7 @@ print("Took " + "{:.3f}".format(end - start) + " seconds to generate knn graph")
 
 
 
-## GPU Acceleration for snn matrix computation
+## GPU Acceleration for snn matrix Construction
 
 @cuda.jit
 def snn(raw_knn, snn_strength):
@@ -82,7 +82,7 @@ def snn(raw_knn, snn_strength):
     i = cuda.threadIdx.x + cuda.blockIdx.x * cuda.blockDim.x
     j = cuda.threadIdx.y + cuda.blockIdx.y * cuda.blockDim.y
 
-    if i >= length or j >= length or j >= i:
+    if i >= length or j >= length:
         return
 
     c = 0
@@ -139,6 +139,16 @@ if is_testing:
 
 
 
+## Generate Json File and store it
+result = []
+for i in range(length):
+    snn_info = {
+        "density": (np.sum(snn_strength[i]) - snn_strength[i, i]),
+        "similarity" : snn_strength[i].tolist()
+    }
+    result.push(snn_info)
 
-
-
+# path = "../XXX" + dataset + "/" + method + "/" + str(sample_divisor) + "/"
+# Path(path).mkdir(parents=True, exist_ok=True)
+# with open(path + "raw.json", "w") as outfile:
+#     json.dump(raw_data, outfile)
