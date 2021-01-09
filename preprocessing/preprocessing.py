@@ -146,9 +146,9 @@ for i in range(length):
         "density": (np.sum(snn_strength[i]) - snn_strength[i, i]),
         "similarity" : snn_strength[i].tolist()
     }
-    result.push(snn_info)
+    result.append(snn_info)
 
-# path = "../XXX" + dataset + "/" + method + "/" + str(sample_divisor) + "/"
-# Path(path).mkdir(parents=True, exist_ok=True)
-# with open(path + "raw.json", "w") as outfile:
-#     json.dump(raw_data, outfile)
+path = "../preprocessed/" + dataset + "/" + method + "/" + str(sample_divisor) + "/"
+Path(path).mkdir(parents=True, exist_ok=True)
+with open(path + "raw.json", "w") as outfile:
+    json.dump(result, outfile)
