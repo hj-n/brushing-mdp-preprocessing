@@ -84,7 +84,9 @@ def snn(raw_knn, snn_strength):
 
     if i >= length or j >= length:
         return
-
+    if i == j:
+        snn_strength[i, j] = 0
+        return
     c = 0
     for m in range(k):
         for n in range(k):
@@ -138,11 +140,48 @@ if is_testing:
                 raise Exception()
 
 
+## GPU Acceleration for getting max snn value
+
+
+
+@cuda.jit
+def max_snn_reduction(snn_strength_flatten, current_length):
+    i = cuda.threadIdx.x + cuda.blockIdx.x * cuda.blockDim.x
+    clen = current_length[0]
+
+    if i >= clen:
+        return
+
+    if snn_strength_flatten[i] < snn_strength_flatten[i + clen]:
+        snn_strength_flatten[i] = snn_strength_flatten[i + clen]
+
 start = time.time()
 
+tpb = 1024
+current_length = (length * length) / 2
+
+snn_strength_faltten_global_mem = cuda.to_device(snn_strength.flatten())
+
+# Perform reduction until the number of blocks reduces below the number of max thread (1024)
+while current_length > 1:
+
+    bpg = math.ceil(current_length / tpb)
+    current_length_global_mem = cuda.to_device(np.array([current_length], dtype=np.int32))
+    max_snn_reduction[bpg, tpb](snn_strength_faltten_global_mem, current_length_global_mem)
+    current_length = math.ceil(current_length / 2)
+
+
+snn_max_2 = snn_strength_faltten_global_mem[:2].copy_to_host()
+snn_max = np.max(snn_max_2)
+
+end = time.time()
+print("Took " + "{:.3f}".format(end - start) + " seconds to get max snn value with gpu")
+
+
+
+
+start = time.time()
 ## Generate json File and store it
-
-
 
 snn_result = []    ## for server
 density_result = np.empty(length)  ## for front
@@ -157,12 +196,19 @@ for i in range(length):
 max_density = np.max(density_result)
 density_result = (density_result / max_density).tolist()
 
+metadata = {
+    "max_snn_similarity": snn_max,
+    "max_snn_density": max_density
+}
+
 path = "../preprocessed/" + dataset + "/" + method + "/" + str(sample_divisor) + "/"
 Path(path).mkdir(parents=True, exist_ok=True)
 with open(path + "snn_similarity.json", "w") as outfile:
     json.dump(snn_result, outfile)
 with open(path + "snn_density.json", "w") as outfile:
     json.dump(density_result, outfile)
+with open(path + "metadata.json", "w") as outfile:
+    json.dump(metadata, outfile)
 
 end = time.time()
 print("Took " + "{:.3f}".format(end - start) + " seconds to dump the result")
