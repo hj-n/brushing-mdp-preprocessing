@@ -9,7 +9,7 @@ import time
 from pathlib import Path
 
 SUPPORTING_DATASETS = ["spheres", "mnist"]
-SUPPORTING_METHODS = ["umap"]
+SUPPORTING_METHODS = ["umap", "pca"]
 
 def sampling(original_list, divisor):
     return [datum for (i, datum) in enumerate(original_list) if i % divisor == 0]
