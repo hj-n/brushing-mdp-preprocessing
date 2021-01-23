@@ -8,7 +8,7 @@ import embedding as EMBED
 import time
 from pathlib import Path
 
-SUPPORTING_DATASETS = ["spheres"]
+SUPPORTING_DATASETS = ["spheres", "mnist"]
 SUPPORTING_METHODS = ["umap"]
 
 def sampling(original_list, divisor):
